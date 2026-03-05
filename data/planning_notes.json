@@ -1,0 +1,16 @@
+[
+  {
+    "id": "ad868594-e07d-444a-be8f-c8aefca8357b",
+    "content": "Testing a Parking Lot",
+    "category": "parking-lot",
+    "author": "Chad",
+    "created_at": "2026-03-05T18:21:07.363Z"
+  },
+  {
+    "id": "eb7b970d-b5f7-4757-a8d6-468566662b31",
+    "content": "Parking Lot #2",
+    "category": "parking-lot",
+    "author": "Chad",
+    "created_at": "2026-03-05T18:21:23.687Z"
+  }
+]

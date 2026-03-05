@@ -1,0 +1,50 @@
+[
+  {
+    "id": "1aa836a6-a0b5-4df0-83d7-d8641e0b9fb1",
+    "department": "finance",
+    "department_lead": "John",
+    "champion_names": "Acel",
+    "workflows": [
+      {
+        "name": "",
+        "description": "to be completes",
+        "success_metric": "Time saved of 10 %"
+      },
+      {
+        "name": "",
+        "description": "",
+        "success_metric": ""
+      }
+    ],
+    "capacity_hours_per_week": 12,
+    "support_needed": "testing",
+    "updated_by": "Chad",
+    "created_at": "",
+    "updated_at": "2026-03-05T18:48:17.422Z"
+  },
+  {
+    "id": "9543efb6-0801-499c-93e7-cf5586eb3025",
+    "department": "people-hr",
+    "department_lead": "",
+    "champion_names": "",
+    "workflows": [
+      {
+        "name": "",
+        "pain_point": "",
+        "success_metric": "",
+        "owner_today": ""
+      },
+      {
+        "name": "",
+        "pain_point": "",
+        "success_metric": "",
+        "owner_today": ""
+      }
+    ],
+    "capacity_hours_per_week": 0,
+    "support_needed": "",
+    "updated_by": "Chad",
+    "created_at": "",
+    "updated_at": "2026-03-05T18:47:56.943Z"
+  }
+]
