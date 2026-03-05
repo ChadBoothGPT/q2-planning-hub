@@ -26,7 +26,7 @@ export default function ReviewPage() {
   const stats = {
     reviewed: myReviews.length,
     total: Q1_ROCKS.length,
-    hit: myReviews.filter(r => r.outcome === 'hit').length,
+    completed: myReviews.filter(r => r.outcome === 'completed').length,
     partially: myReviews.filter(r => r.outcome === 'partially').length,
     missed: myReviews.filter(r => r.outcome === 'missed').length,
     carryForward: myReviews.filter(r => r.carry_forward).length,
@@ -35,7 +35,7 @@ export default function ReviewPage() {
   function saveReview(rockId: string, updates: Partial<RockReview>) {
     const existing = myReviewMap[rockId];
     const review = {
-      ...(existing || { rock_id: rockId, reviewer: currentUser, outcome: 'hit', key_takeaway: '', carry_forward: false }),
+      ...(existing || { rock_id: rockId, reviewer: currentUser, outcome: 'completed', key_takeaway: '', carry_forward: false }),
       ...updates,
     };
 
@@ -79,7 +79,7 @@ export default function ReviewPage() {
             </div>
             <div className="h-10 w-px bg-gray-200" />
             <div className="flex gap-4 text-center text-sm">
-              <div><span className="text-lg font-bold text-green-600">{stats.hit}</span><br/><span className="text-gray-500">Hit</span></div>
+              <div><span className="text-lg font-bold text-green-600">{stats.completed}</span><br/><span className="text-gray-500">Completed</span></div>
               <div><span className="text-lg font-bold text-yellow-600">{stats.partially}</span><br/><span className="text-gray-500">Partial</span></div>
               <div><span className="text-lg font-bold text-red-600">{stats.missed}</span><br/><span className="text-gray-500">Missed</span></div>
               <div><span className="text-lg font-bold text-blue-600">{stats.carryForward}</span><br/><span className="text-gray-500">Carry Fwd</span></div>
@@ -149,9 +149,9 @@ export default function ReviewPage() {
 
                   {/* Outcome Toggle */}
                   <div className="flex gap-2 mb-4">
-                    {(['hit', 'partially', 'missed'] as const).map(outcome => {
+                    {(['completed', 'partially', 'missed'] as const).map(outcome => {
                       const colors = {
-                        hit: 'bg-green-500 text-white',
+                        completed: 'bg-green-500 text-white',
                         partially: 'bg-yellow-500 text-white',
                         missed: 'bg-red-500 text-white',
                       };
@@ -163,7 +163,7 @@ export default function ReviewPage() {
                           onClick={() => saveReview(rock.id, { outcome })}
                           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${isActive ? colors[outcome] : inactive}`}
                         >
-                          {outcome === 'hit' ? 'Hit' : outcome === 'partially' ? 'Partially' : 'Missed'}
+                          {outcome === 'completed' ? 'Completed' : outcome === 'partially' ? 'Partially' : 'Missed'}
                         </button>
                       );
                     })}

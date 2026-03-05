@@ -26,7 +26,7 @@ export interface RockReview {
   id: string;
   rock_id: string;
   reviewer: string;
-  outcome: 'hit' | 'partially' | 'missed';
+  outcome: 'completed' | 'partially' | 'missed';
   key_takeaway: string;
   carry_forward: boolean;
   created_at: string;

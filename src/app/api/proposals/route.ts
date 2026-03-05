@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProposals, addProposal, updateProposalStatus, updateProposal } from '@/lib/db';
+import { getProposals, addProposal, updateProposalStatus, updateProposal, deleteProposal } from '@/lib/db';
 import { RockProposal } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -25,6 +25,15 @@ export async function POST(req: NextRequest) {
   };
   const saved = await addProposal(proposal);
   return NextResponse.json(saved);
+}
+
+export async function DELETE(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  const success = await deleteProposal(id);
+  if (!success) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json({ success: true });
 }
 
 export async function PATCH(req: NextRequest) {

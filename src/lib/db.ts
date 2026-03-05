@@ -12,10 +12,12 @@ export async function getReviews(): Promise<RockReview[]> {
 }
 
 export async function upsertReview(review: RockReview): Promise<RockReview> {
+  // Exclude created_at from spread — empty string fails Supabase TIMESTAMPTZ; let DB default handle it
+  const { created_at, ...reviewData } = review;
   const { data, error } = await supabase
     .from('rock_reviews')
     .upsert(
-      { ...review, updated_at: new Date().toISOString() },
+      { ...reviewData, updated_at: new Date().toISOString() },
       { onConflict: 'rock_id,reviewer' }
     )
     .select()
@@ -77,16 +79,25 @@ export async function getCommitments(): Promise<AICommitment[]> {
 }
 
 export async function upsertCommitment(commitment: AICommitment): Promise<AICommitment> {
+  const { created_at, ...commitmentData } = commitment;
   const { data, error } = await supabase
     .from('ai_commitments')
     .upsert(
-      { ...commitment, updated_at: new Date().toISOString() },
+      { ...commitmentData, updated_at: new Date().toISOString() },
       { onConflict: 'department' }
     )
     .select()
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function deleteProposal(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('rock_proposals')
+    .delete()
+    .eq('id', id);
+  return !error;
 }
 
 // Planning Notes

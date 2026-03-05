@@ -31,10 +31,10 @@ export default function SummaryPage() {
   function getConsensusOutcome(rockId: string): { outcome: string; count: number; total: number } {
     const rockReviews = reviews.filter(r => r.rock_id === rockId);
     if (rockReviews.length === 0) return { outcome: 'pending', count: 0, total: 0 };
-    const counts = { hit: 0, partially: 0, missed: 0 };
-    rockReviews.forEach(r => counts[r.outcome]++);
-    const max = Math.max(counts.hit, counts.partially, counts.missed);
-    const outcome = counts.hit === max ? 'hit' : counts.partially === max ? 'partially' : 'missed';
+    const counts = { completed: 0, partially: 0, missed: 0 };
+    rockReviews.forEach(r => { if (r.outcome in counts) counts[r.outcome as keyof typeof counts]++; });
+    const max = Math.max(counts.completed, counts.partially, counts.missed);
+    const outcome = counts.completed === max ? 'completed' : counts.partially === max ? 'partially' : 'missed';
     return { outcome, count: max, total: rockReviews.length };
   }
 
@@ -43,7 +43,7 @@ export default function SummaryPage() {
   }
 
   const q1Stats = {
-    hit: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'hit').length,
+    completed: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'completed').length,
     partially: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'partially').length,
     missed: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'missed').length,
     carryForward: Q1_ROCKS.filter(r => getCarryForwardCount(r.id) > 0).length,
@@ -86,7 +86,7 @@ export default function SummaryPage() {
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-xl font-bold text-gray-900">Q1 Scorecard</h2>
           <div className="flex gap-3 text-sm">
-            <span className="text-green-600 font-semibold">{q1Stats.hit} Hit</span>
+            <span className="text-green-600 font-semibold">{q1Stats.completed} Completed</span>
             <span className="text-yellow-600 font-semibold">{q1Stats.partially} Partial</span>
             <span className="text-red-600 font-semibold">{q1Stats.missed} Missed</span>
             <span className="text-blue-600 font-semibold">{q1Stats.carryForward} Carry Fwd</span>
@@ -107,7 +107,7 @@ export default function SummaryPage() {
               {Q1_ROCKS.map(rock => {
                 const consensus = getConsensusOutcome(rock.id);
                 const cfCount = getCarryForwardCount(rock.id);
-                const rowBg = consensus.outcome === 'hit' ? 'bg-green-50/50' : consensus.outcome === 'partially' ? 'bg-yellow-50/50' : consensus.outcome === 'missed' ? 'bg-red-50/50' : '';
+                const rowBg = consensus.outcome === 'completed' ? 'bg-green-50/50' : consensus.outcome === 'partially' ? 'bg-yellow-50/50' : consensus.outcome === 'missed' ? 'bg-red-50/50' : '';
                 return (
                   <tr key={rock.id} className={`border-b border-gray-50 ${rowBg}`}>
                     <td className="px-5 py-3 font-medium text-gray-900">{rock.name}</td>
