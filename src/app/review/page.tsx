@@ -23,13 +23,20 @@ export default function ReviewPage() {
   const myReviews = reviews.filter(r => r.reviewer === currentUser);
   const myReviewMap = Object.fromEntries(myReviews.map(r => [r.rock_id, r]));
 
+  // Get the latest review per rock (across all users) for team-wide stats
+  const latestReviewPerRock = Q1_ROCKS.map(rock => {
+    const rockReviews = reviews.filter(r => r.rock_id === rock.id);
+    if (rockReviews.length === 0) return null;
+    return rockReviews.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
+  }).filter(Boolean) as RockReview[];
+
   const stats = {
-    reviewed: myReviews.length,
+    reviewed: latestReviewPerRock.length,
     total: Q1_ROCKS.length,
-    completed: myReviews.filter(r => r.outcome === 'completed').length,
-    expected: myReviews.filter(r => r.outcome === 'expected').length,
-    carryForward: myReviews.filter(r => r.outcome === 'carry-forward').length,
-    dropped: myReviews.filter(r => r.outcome === 'drop').length,
+    completed: latestReviewPerRock.filter(r => r.outcome === 'completed').length,
+    expected: latestReviewPerRock.filter(r => r.outcome === 'expected').length,
+    carryForward: latestReviewPerRock.filter(r => r.outcome === 'carry-forward').length,
+    dropped: latestReviewPerRock.filter(r => r.outcome === 'drop').length,
   };
 
   function saveReview(rockId: string, updates: Partial<RockReview>) {
@@ -95,10 +102,9 @@ export default function ReviewPage() {
         {Q1_ROCKS.map(rock => {
           const myReview = myReviewMap[rock.id];
           const othersReviews = reviews.filter(r => r.rock_id === rock.id && r.reviewer !== currentUser);
-          const reviewers = reviews.filter(r => r.rock_id === rock.id).map(r => r.reviewer);
           const isExpanded = expandedRock === rock.id;
 
-          // Use review overrides if set, otherwise fall back to seed data
+          // Latest review across all users for this rock
           const latestReview = reviews.filter(r => r.rock_id === rock.id).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
           const displayProgress = latestReview?.rock_progress ?? rock.progress;
           const displayDescription = latestReview?.rock_description ?? rock.description;
@@ -141,27 +147,24 @@ export default function ReviewPage() {
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-xs text-gray-500">{displayProgress}% complete</span>
                   <div className="flex items-center gap-2">
-                    {myReview ? (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                        {myReview.reviewer} · {new Date(myReview.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
+                    {latestReview ? (
+                      <>
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                          {latestReview.reviewer} · {new Date(latestReview.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                        <span
+                          className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold"
+                          style={{ backgroundColor: getMemberColor(latestReview.reviewer) }}
+                          title={latestReview.reviewer}
+                        >
+                          {latestReview.reviewer[0]}
+                        </span>
+                      </>
                     ) : (
                       <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
                         Pending Review
                       </span>
                     )}
-                    <div className="flex -space-x-1.5">
-                      {TEAM_MEMBERS.filter(m => reviewers.includes(m.name)).map(m => (
-                        <span
-                          key={m.name}
-                          className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold"
-                          style={{ backgroundColor: m.color }}
-                          title={m.name}
-                        >
-                          {m.name[0]}
-                        </span>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>

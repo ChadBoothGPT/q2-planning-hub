@@ -6,7 +6,7 @@ import { STRATEGIC_PILLARS, TEAM_MEMBERS, getMemberColor } from '@/lib/constants
 import { RockProposal } from '@/lib/types';
 import PillarBadge from '@/components/PillarBadge';
 
-const GLOCOM_MEMBERS = TEAM_MEMBERS.slice(0, 6);
+const ALL_MEMBERS = TEAM_MEMBERS;
 
 interface EditForm {
   name: string;
@@ -208,7 +208,7 @@ export default function ProposalsPage() {
                   required
                 >
                   <option value="">Select owner...</option>
-                  {GLOCOM_MEMBERS.map(m => (
+                  {ALL_MEMBERS.map(m => (
                     <option key={m.name} value={m.name}>{m.name}</option>
                   ))}
                 </select>
@@ -315,7 +315,7 @@ export default function ProposalsPage() {
                               onChange={e => setEditForm({ ...editForm, owner: e.target.value })}
                               className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0B4B3B] focus:border-transparent outline-none"
                             >
-                              {GLOCOM_MEMBERS.map(m => (
+                              {ALL_MEMBERS.map(m => (
                                 <option key={m.name} value={m.name}>{m.name}</option>
                               ))}
                             </select>
