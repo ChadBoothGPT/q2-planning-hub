@@ -27,15 +27,15 @@ export default function ReviewPage() {
     reviewed: myReviews.length,
     total: Q1_ROCKS.length,
     completed: myReviews.filter(r => r.outcome === 'completed').length,
-    partially: myReviews.filter(r => r.outcome === 'partially').length,
-    missed: myReviews.filter(r => r.outcome === 'missed').length,
-    carryForward: myReviews.filter(r => r.carry_forward).length,
+    expected: myReviews.filter(r => r.outcome === 'expected').length,
+    carryForward: myReviews.filter(r => r.outcome === 'carry-forward').length,
+    dropped: myReviews.filter(r => r.outcome === 'drop').length,
   };
 
   function saveReview(rockId: string, updates: Partial<RockReview>) {
     const existing = myReviewMap[rockId];
     const review = {
-      ...(existing || { rock_id: rockId, reviewer: currentUser, outcome: 'completed', key_takeaway: '', carry_forward: false }),
+      ...(existing || { rock_id: rockId, reviewer: currentUser, outcome: 'completed' as const, key_takeaway: '', carry_forward: false }),
       ...updates,
     };
 
@@ -80,9 +80,9 @@ export default function ReviewPage() {
             <div className="h-10 w-px bg-gray-200" />
             <div className="flex gap-4 text-center text-sm">
               <div><span className="text-lg font-bold text-green-600">{stats.completed}</span><br/><span className="text-gray-500">Completed</span></div>
-              <div><span className="text-lg font-bold text-yellow-600">{stats.partially}</span><br/><span className="text-gray-500">Partial</span></div>
-              <div><span className="text-lg font-bold text-red-600">{stats.missed}</span><br/><span className="text-gray-500">Missed</span></div>
+              <div><span className="text-lg font-bold text-yellow-600">{stats.expected}</span><br/><span className="text-gray-500">Expected</span></div>
               <div><span className="text-lg font-bold text-blue-600">{stats.carryForward}</span><br/><span className="text-gray-500">Carry Fwd</span></div>
+              <div><span className="text-lg font-bold text-red-600">{stats.dropped}</span><br/><span className="text-gray-500">Drop</span></div>
             </div>
           </div>
         </div>
@@ -126,18 +126,28 @@ export default function ReviewPage() {
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-xs text-gray-500">{rock.progress}% complete</span>
-                  {/* Reviewer dots */}
-                  <div className="flex -space-x-1.5">
-                    {TEAM_MEMBERS.filter(m => reviewers.includes(m.name)).map(m => (
-                      <span
-                        key={m.name}
-                        className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold"
-                        style={{ backgroundColor: m.color }}
-                        title={m.name}
-                      >
-                        {m.name[0]}
+                  <div className="flex items-center gap-2">
+                    {myReview ? (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                        {myReview.reviewer} · {new Date(myReview.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
-                    ))}
+                    ) : (
+                      <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                        Pending Review
+                      </span>
+                    )}
+                    <div className="flex -space-x-1.5">
+                      {TEAM_MEMBERS.filter(m => reviewers.includes(m.name)).map(m => (
+                        <span
+                          key={m.name}
+                          className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold"
+                          style={{ backgroundColor: m.color }}
+                          title={m.name}
+                        >
+                          {m.name[0]}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -148,12 +158,19 @@ export default function ReviewPage() {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Your Review</p>
 
                   {/* Outcome Toggle */}
-                  <div className="flex gap-2 mb-4">
-                    {(['completed', 'partially', 'missed'] as const).map(outcome => {
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {(['completed', 'expected', 'carry-forward', 'drop'] as const).map(outcome => {
                       const colors = {
                         completed: 'bg-green-500 text-white',
-                        partially: 'bg-yellow-500 text-white',
-                        missed: 'bg-red-500 text-white',
+                        expected: 'bg-yellow-500 text-white',
+                        'carry-forward': 'bg-blue-500 text-white',
+                        drop: 'bg-red-500 text-white',
+                      };
+                      const labels = {
+                        completed: 'Completed',
+                        expected: 'Expected to Complete',
+                        'carry-forward': 'Carry Forward',
+                        drop: 'Drop',
                       };
                       const inactive = 'bg-gray-100 text-gray-600 hover:bg-gray-200';
                       const isActive = myReview?.outcome === outcome;
@@ -161,9 +178,9 @@ export default function ReviewPage() {
                         <button
                           key={outcome}
                           onClick={() => saveReview(rock.id, { outcome })}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${isActive ? colors[outcome] : inactive}`}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition ${isActive ? colors[outcome] : inactive}`}
                         >
-                          {outcome === 'completed' ? 'Completed' : outcome === 'partially' ? 'Partially' : 'Missed'}
+                          {labels[outcome]}
                         </button>
                       );
                     })}
@@ -177,17 +194,6 @@ export default function ReviewPage() {
                     placeholder="What's the one thing to know?"
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#0B4B3B] focus:border-transparent outline-none mb-4"
                   />
-
-                  {/* Carry Forward */}
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <div
-                      onClick={() => saveReview(rock.id, { carry_forward: !myReview?.carry_forward })}
-                      className={`relative w-10 h-6 rounded-full transition cursor-pointer ${myReview?.carry_forward ? 'bg-[#0B4B3B]' : 'bg-gray-300'}`}
-                    >
-                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${myReview?.carry_forward ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                    </div>
-                    <span className="text-sm text-gray-700">Carry forward to Q2?</span>
-                  </label>
 
                   {/* Others' Reviews */}
                   {othersReviews.length > 0 && (
@@ -205,7 +211,6 @@ export default function ReviewPage() {
                             <span className="font-medium text-gray-700">{r.reviewer}</span>
                             <StatusBadge status={r.outcome} />
                             {r.key_takeaway && <span className="text-gray-500 truncate">{r.key_takeaway}</span>}
-                            {r.carry_forward && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Carry Fwd</span>}
                           </div>
                         ))}
                       </div>

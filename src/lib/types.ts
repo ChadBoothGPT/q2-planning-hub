@@ -26,7 +26,7 @@ export interface RockReview {
   id: string;
   rock_id: string;
   reviewer: string;
-  outcome: 'completed' | 'partially' | 'missed';
+  outcome: 'completed' | 'expected' | 'carry-forward' | 'drop';
   key_takeaway: string;
   carry_forward: boolean;
   created_at: string;
@@ -57,7 +57,7 @@ export interface AIWorkflow {
 
 export interface AICommitment {
   id: string;
-  department: 'finance' | 'people-ta' | 'people-hr';
+  department: string;
   department_lead: string;
   champion_names: string;
   workflows: AIWorkflow[];

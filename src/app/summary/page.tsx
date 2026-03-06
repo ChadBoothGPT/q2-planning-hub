@@ -31,22 +31,22 @@ export default function SummaryPage() {
   function getConsensusOutcome(rockId: string): { outcome: string; count: number; total: number } {
     const rockReviews = reviews.filter(r => r.rock_id === rockId);
     if (rockReviews.length === 0) return { outcome: 'pending', count: 0, total: 0 };
-    const counts = { completed: 0, partially: 0, missed: 0 };
+    const counts = { completed: 0, expected: 0, 'carry-forward': 0, drop: 0 };
     rockReviews.forEach(r => { if (r.outcome in counts) counts[r.outcome as keyof typeof counts]++; });
-    const max = Math.max(counts.completed, counts.partially, counts.missed);
-    const outcome = counts.completed === max ? 'completed' : counts.partially === max ? 'partially' : 'missed';
+    const max = Math.max(counts.completed, counts.expected, counts['carry-forward'], counts.drop);
+    let outcome = 'completed';
+    if (counts.completed === max) outcome = 'completed';
+    else if (counts.expected === max) outcome = 'expected';
+    else if (counts['carry-forward'] === max) outcome = 'carry-forward';
+    else outcome = 'drop';
     return { outcome, count: max, total: rockReviews.length };
-  }
-
-  function getCarryForwardCount(rockId: string): number {
-    return reviews.filter(r => r.rock_id === rockId && r.carry_forward).length;
   }
 
   const q1Stats = {
     completed: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'completed').length,
-    partially: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'partially').length,
-    missed: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'missed').length,
-    carryForward: Q1_ROCKS.filter(r => getCarryForwardCount(r.id) > 0).length,
+    expected: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'expected').length,
+    carryForward: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'carry-forward').length,
+    dropped: Q1_ROCKS.filter(r => getConsensusOutcome(r.id).outcome === 'drop').length,
   };
 
   // Q2 approved rocks
@@ -87,9 +87,9 @@ export default function SummaryPage() {
           <h2 className="text-xl font-bold text-gray-900">Q1 Scorecard</h2>
           <div className="flex gap-3 text-sm">
             <span className="text-green-600 font-semibold">{q1Stats.completed} Completed</span>
-            <span className="text-yellow-600 font-semibold">{q1Stats.partially} Partial</span>
-            <span className="text-red-600 font-semibold">{q1Stats.missed} Missed</span>
+            <span className="text-yellow-600 font-semibold">{q1Stats.expected} Expected</span>
             <span className="text-blue-600 font-semibold">{q1Stats.carryForward} Carry Fwd</span>
+            <span className="text-red-600 font-semibold">{q1Stats.dropped} Drop</span>
           </div>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -100,14 +100,12 @@ export default function SummaryPage() {
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Pillar</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Owner</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Outcome</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Carry Fwd?</th>
               </tr>
             </thead>
             <tbody>
               {Q1_ROCKS.map(rock => {
                 const consensus = getConsensusOutcome(rock.id);
-                const cfCount = getCarryForwardCount(rock.id);
-                const rowBg = consensus.outcome === 'completed' ? 'bg-green-50/50' : consensus.outcome === 'partially' ? 'bg-yellow-50/50' : consensus.outcome === 'missed' ? 'bg-red-50/50' : '';
+                const rowBg = consensus.outcome === 'completed' ? 'bg-green-50/50' : consensus.outcome === 'expected' ? 'bg-yellow-50/50' : consensus.outcome === 'carry-forward' ? 'bg-blue-50/50' : consensus.outcome === 'drop' ? 'bg-red-50/50' : '';
                 return (
                   <tr key={rock.id} className={`border-b border-gray-50 ${rowBg}`}>
                     <td className="px-5 py-3 font-medium text-gray-900">{rock.name}</td>
@@ -128,13 +126,6 @@ export default function SummaryPage() {
                         </div>
                       ) : (
                         <span className="text-gray-400 text-xs">No reviews</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3">
-                      {cfCount > 0 ? (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Yes ({cfCount})</span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
                       )}
                     </td>
                   </tr>

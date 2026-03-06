@@ -7,7 +7,7 @@ import { AICommitment, AIWorkflow } from '@/lib/types';
 
 const EMPTY_WORKFLOW: AIWorkflow = { name: '', pain_point: '', success_metric: '', owner_today: '' };
 
-function getEmptyCommitment(dept: typeof DEPARTMENTS[number]): Partial<AICommitment> {
+function getEmptyCommitment(dept: { id: string; name: string }): Partial<AICommitment> {
   return {
     department: dept.id,
     department_lead: '',
@@ -86,13 +86,27 @@ export default function AIPivotPage() {
   const [commitments, setCommitments] = useState<Record<string, Partial<AICommitment>>>({});
   const [expandedDept, setExpandedDept] = useState<string>(DEPARTMENTS[0].id);
   const [showGuide, setShowGuide] = useState(false);
+  const [customDepts, setCustomDepts] = useState<{ id: string; name: string }[]>(() => {
+    if (typeof window !== 'undefined') {
+      try { return JSON.parse(localStorage.getItem('ai-pivot-custom-depts') || '[]'); } catch { return []; }
+    }
+    return [];
+  });
+  const [showAddDept, setShowAddDept] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   const fetchCommitments = useCallback(async () => {
     const res = await fetch('/api/commitments');
     const data: AICommitment[] = await res.json();
     const map: Record<string, Partial<AICommitment>> = {};
-    DEPARTMENTS.forEach(d => {
+    const savedCustom: { id: string; name: string }[] = (() => {
+      if (typeof window !== 'undefined') {
+        try { return JSON.parse(localStorage.getItem('ai-pivot-custom-depts') || '[]'); } catch { return []; }
+      }
+      return [];
+    })();
+    [...DEPARTMENTS, ...savedCustom].forEach(d => {
       const existing = data.find(c => c.department === d.id);
       map[d.id] = existing || getEmptyCommitment(d);
     });
@@ -148,6 +162,23 @@ export default function AIPivotPage() {
     }
   }
 
+  const allDepts = [...DEPARTMENTS, ...customDepts];
+
+  function addDepartment() {
+    if (!newDeptName.trim()) return;
+    const id = `custom-${newDeptName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`;
+    const newDept = { id, name: newDeptName.trim() };
+    const updated = [...customDepts, newDept];
+    setCustomDepts(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ai-pivot-custom-depts', JSON.stringify(updated));
+    }
+    setCommitments(prev => ({ ...prev, [id]: getEmptyCommitment(newDept) }));
+    setExpandedDept(id);
+    setNewDeptName('');
+    setShowAddDept(false);
+  }
+
   function getCompletion(dept: Partial<AICommitment>): number {
     let filled = 0;
     const total = 5;
@@ -159,17 +190,17 @@ export default function AIPivotPage() {
     return Math.round((filled / total) * 100);
   }
 
-  const allWorkflows = DEPARTMENTS.flatMap(d => {
+  const allWorkflows = allDepts.flatMap(d => {
     const c = commitments[d.id];
     return (c?.workflows || [])
       .filter(w => w.name)
       .map(w => ({ ...w, department: d.name }));
   });
 
-  const totalHours = DEPARTMENTS.reduce((sum, d) => sum + (commitments[d.id]?.capacity_hours_per_week || 0), 0);
+  const totalHours = allDepts.reduce((sum, d) => sum + (commitments[d.id]?.capacity_hours_per_week || 0), 0);
 
   const warnings: string[] = [];
-  DEPARTMENTS.forEach(d => {
+  allDepts.forEach(d => {
     const c = commitments[d.id];
     if (!c?.champion_names) warnings.push(`${d.name} has no champion assigned`);
     if ((c?.capacity_hours_per_week || 0) === 0) warnings.push(`${d.name} has 0 hours/week committed`);
@@ -223,7 +254,7 @@ export default function AIPivotPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Left Column: Department Cards */}
         <div className="lg:col-span-3 space-y-4">
-          {DEPARTMENTS.map(dept => {
+          {allDepts.map(dept => {
             const c = commitments[dept.id] || getEmptyCommitment(dept);
             const isExpanded = expandedDept === dept.id;
             const completion = getCompletion(c);
@@ -360,6 +391,7 @@ export default function AIPivotPage() {
                           + Add another opportunity
                         </button>
                       )}
+
                     </div>
 
                     {/* Capacity Commitment */}
@@ -399,6 +431,42 @@ export default function AIPivotPage() {
               </div>
             );
           })}
+
+          {/* Add Department */}
+          {!showAddDept ? (
+            <button
+              onClick={() => setShowAddDept(true)}
+              className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-sm text-gray-400 hover:border-[#A3D7C9] hover:text-[#0B4B3B] transition font-medium"
+            >
+              + Add Department
+            </button>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <p className="text-sm font-medium text-gray-700 mb-3">Add Department</p>
+              <input
+                autoFocus
+                value={newDeptName}
+                onChange={e => setNewDeptName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addDepartment()}
+                placeholder="e.g., Marketing, Operations..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#0B4B3B] focus:border-transparent outline-none mb-3"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={addDepartment}
+                  className="px-4 py-2 bg-[#0B4B3B] text-white rounded-lg text-sm font-medium hover:bg-[#0d6b54] transition"
+                >
+                  Add
+                </button>
+                <button
+                  onClick={() => { setShowAddDept(false); setNewDeptName(''); }}
+                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: AI Adoption Map */}
@@ -407,7 +475,7 @@ export default function AIPivotPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <h3 className="font-bold text-gray-900 mb-4">Department Readiness</h3>
             <div className="space-y-3">
-              {DEPARTMENTS.map(dept => {
+              {allDepts.map(dept => {
                 const c = commitments[dept.id];
                 const hasChampion = !!c?.champion_names;
                 const workflowCount = (c?.workflows || []).filter(w => w.name).length;
@@ -439,7 +507,7 @@ export default function AIPivotPage() {
             </div>
             {totalHours > 0 && (
               <div className="mt-4 space-y-2">
-                {DEPARTMENTS.map(d => {
+                {allDepts.map(d => {
                   const hrs = commitments[d.id]?.capacity_hours_per_week || 0;
                   const pct = totalHours > 0 ? (hrs / totalHours) * 100 : 0;
                   return (
