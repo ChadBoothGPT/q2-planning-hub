@@ -111,7 +111,7 @@ export default function ReviewPage() {
                 onClick={() => setExpandedRock(isExpanded ? null : rock.id)}
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900">{rock.name}</h3>
                     <textarea
                       value={displayDescription}
