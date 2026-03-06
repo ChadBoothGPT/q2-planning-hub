@@ -113,7 +113,15 @@ export default function ReviewPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="font-bold text-gray-900">{rock.name}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{displayDescription}</p>
+                    <textarea
+                      value={displayDescription}
+                      onChange={e => saveReview(rock.id, { rock_description: e.target.value })}
+                      onClick={e => e.stopPropagation()}
+                      onMouseDown={e => e.stopPropagation()}
+                      rows={2}
+                      className="text-sm text-gray-500 mt-1 w-full bg-transparent border border-transparent rounded-lg px-1 py-0.5 -ml-1 hover:border-gray-200 focus:border-[#0B4B3B] focus:ring-1 focus:ring-[#0B4B3B] outline-none resize-none transition-colors cursor-text"
+                      placeholder="Add a description…"
+                    />
                   </div>
                   <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -162,30 +170,18 @@ export default function ReviewPage() {
               {/* Review Form (Expanded) */}
               {isExpanded && (
                 <div className="border-t border-gray-100 p-5 bg-gray-50/50">
-                  {/* Editable Rock Details */}
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Rock Details</p>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5">
-                    <div className="flex items-center gap-4 mb-3">
-                      <label className="text-xs font-medium text-gray-500 w-20 flex-shrink-0">Progress</label>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={myReview?.rock_progress ?? rock.progress}
-                        onChange={e => saveReview(rock.id, { rock_progress: parseInt(e.target.value) })}
-                        className="flex-1 h-2 accent-[#0B4B3B]"
-                      />
-                      <span className="text-sm font-semibold text-[#0B4B3B] w-12 text-right">{myReview?.rock_progress ?? rock.progress}%</span>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-500 mb-1 block">Description</label>
-                      <textarea
-                        value={myReview?.rock_description ?? rock.description}
-                        onChange={e => saveReview(rock.id, { rock_description: e.target.value })}
-                        rows={3}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0B4B3B] focus:border-transparent outline-none resize-none"
-                      />
-                    </div>
+                  {/* Progress Slider */}
+                  <div className="flex items-center gap-4 mb-5">
+                    <label className="text-xs font-medium text-gray-500 w-20 flex-shrink-0">Progress</label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={myReview?.rock_progress ?? rock.progress}
+                      onChange={e => saveReview(rock.id, { rock_progress: parseInt(e.target.value) })}
+                      className="flex-1 h-2 accent-[#0B4B3B]"
+                    />
+                    <span className="text-sm font-semibold text-[#0B4B3B] w-12 text-right">{myReview?.rock_progress ?? rock.progress}%</span>
                   </div>
 
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Your Review</p>
