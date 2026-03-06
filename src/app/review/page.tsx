@@ -129,7 +129,6 @@ export default function ReviewPage() {
                 </div>
                 <div className="flex items-center gap-3 mb-3">
                   <PillarBadge pillarId={rock.pillar} />
-                  <StatusBadge status={rock.status} />
                   <span className="text-xs text-gray-500">Owner: {rock.owner}</span>
                 </div>
                 {/* Progress Bar */}
