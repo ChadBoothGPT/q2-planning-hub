@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
     outcome: body.outcome,
     key_takeaway: body.key_takeaway || '',
     carry_forward: body.carry_forward || false,
+    rock_progress: body.rock_progress ?? null,
+    rock_description: body.rock_description ?? null,
     created_at: '',
     updated_at: '',
   };

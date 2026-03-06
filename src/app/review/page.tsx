@@ -34,9 +34,11 @@ export default function ReviewPage() {
 
   function saveReview(rockId: string, updates: Partial<RockReview>) {
     const existing = myReviewMap[rockId];
+    const now = new Date().toISOString();
     const review = {
-      ...(existing || { rock_id: rockId, reviewer: currentUser, outcome: 'completed' as const, key_takeaway: '', carry_forward: false }),
+      ...(existing || { rock_id: rockId, reviewer: currentUser, outcome: 'completed' as const, key_takeaway: '', carry_forward: false, created_at: now }),
       ...updates,
+      updated_at: now,
     };
 
     // Optimistic update
@@ -96,6 +98,11 @@ export default function ReviewPage() {
           const reviewers = reviews.filter(r => r.rock_id === rock.id).map(r => r.reviewer);
           const isExpanded = expandedRock === rock.id;
 
+          // Use review overrides if set, otherwise fall back to seed data
+          const latestReview = reviews.filter(r => r.rock_id === rock.id).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
+          const displayProgress = latestReview?.rock_progress ?? rock.progress;
+          const displayDescription = latestReview?.rock_description ?? rock.description;
+
           return (
             <div key={rock.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {/* Card Header */}
@@ -106,7 +113,7 @@ export default function ReviewPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="font-bold text-gray-900">{rock.name}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{rock.description}</p>
+                    <p className="text-sm text-gray-500 mt-1">{displayDescription}</p>
                   </div>
                   <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -121,11 +128,11 @@ export default function ReviewPage() {
                 <div className="w-full bg-gray-100 rounded-full h-2">
                   <div
                     className="h-2 rounded-full transition-all bg-[#0B4B3B]"
-                    style={{ width: `${rock.progress}%` }}
+                    style={{ width: `${displayProgress}%` }}
                   />
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-gray-500">{rock.progress}% complete</span>
+                  <span className="text-xs text-gray-500">{displayProgress}% complete</span>
                   <div className="flex items-center gap-2">
                     {myReview ? (
                       <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
@@ -155,6 +162,32 @@ export default function ReviewPage() {
               {/* Review Form (Expanded) */}
               {isExpanded && (
                 <div className="border-t border-gray-100 p-5 bg-gray-50/50">
+                  {/* Editable Rock Details */}
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Rock Details</p>
+                  <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5">
+                    <div className="flex items-center gap-4 mb-3">
+                      <label className="text-xs font-medium text-gray-500 w-20 flex-shrink-0">Progress</label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={myReview?.rock_progress ?? rock.progress}
+                        onChange={e => saveReview(rock.id, { rock_progress: parseInt(e.target.value) })}
+                        className="flex-1 h-2 accent-[#0B4B3B]"
+                      />
+                      <span className="text-sm font-semibold text-[#0B4B3B] w-12 text-right">{myReview?.rock_progress ?? rock.progress}%</span>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 mb-1 block">Description</label>
+                      <textarea
+                        value={myReview?.rock_description ?? rock.description}
+                        onChange={e => saveReview(rock.id, { rock_description: e.target.value })}
+                        rows={3}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0B4B3B] focus:border-transparent outline-none resize-none"
+                      />
+                    </div>
+                  </div>
+
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Your Review</p>
 
                   {/* Outcome Toggle */}
@@ -187,12 +220,12 @@ export default function ReviewPage() {
                   </div>
 
                   {/* Key Takeaway */}
-                  <input
-                    type="text"
+                  <textarea
                     value={myReview?.key_takeaway || ''}
                     onChange={e => saveReview(rock.id, { key_takeaway: e.target.value })}
                     placeholder="What's the one thing to know?"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#0B4B3B] focus:border-transparent outline-none mb-4"
+                    rows={2}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#0B4B3B] focus:border-transparent outline-none mb-4 resize-none"
                   />
 
                   {/* Others' Reviews */}
@@ -201,16 +234,18 @@ export default function ReviewPage() {
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Other Reviews</p>
                       <div className="space-y-2">
                         {othersReviews.map(r => (
-                          <div key={r.id} className="flex items-center gap-3 text-sm">
-                            <span
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                              style={{ backgroundColor: getMemberColor(r.reviewer) }}
-                            >
-                              {r.reviewer[0]}
-                            </span>
-                            <span className="font-medium text-gray-700">{r.reviewer}</span>
-                            <StatusBadge status={r.outcome} />
-                            {r.key_takeaway && <span className="text-gray-500 truncate">{r.key_takeaway}</span>}
+                          <div key={r.id} className="text-sm">
+                            <div className="flex items-center gap-3">
+                              <span
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                                style={{ backgroundColor: getMemberColor(r.reviewer) }}
+                              >
+                                {r.reviewer[0]}
+                              </span>
+                              <span className="font-medium text-gray-700">{r.reviewer}</span>
+                              <StatusBadge status={r.outcome} />
+                            </div>
+                            {r.key_takeaway && <p className="text-gray-500 mt-1 ml-9 leading-relaxed">{r.key_takeaway}</p>}
                           </div>
                         ))}
                       </div>

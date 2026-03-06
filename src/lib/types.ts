@@ -29,6 +29,8 @@ export interface RockReview {
   outcome: 'completed' | 'expected' | 'carry-forward' | 'drop';
   key_takeaway: string;
   carry_forward: boolean;
+  rock_progress: number | null;
+  rock_description: string | null;
   created_at: string;
   updated_at: string;
 }
