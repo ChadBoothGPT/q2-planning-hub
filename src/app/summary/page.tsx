@@ -11,6 +11,7 @@ export default function SummaryPage() {
   const [proposals, setProposals] = useState<RockProposal[]>([]);
   const [commitments, setCommitments] = useState<AICommitment[]>([]);
   const [notes, setNotes] = useState<PlanningNote[]>([]);
+  const [expandedRocks, setExpandedRocks] = useState<Set<string>>(new Set());
 
   const fetchAll = useCallback(async () => {
     const [revRes, propRes, comRes, noteRes] = await Promise.all([
@@ -156,28 +157,57 @@ export default function SummaryPage() {
                 <span>{pillar.icon}</span>
                 <span className="font-bold text-sm" style={{ color: pillar.color }}>{pillar.name}</span>
               </div>
-              {rocks.map(rock => (
-                <div key={rock.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-2">
-                  <div className="font-medium text-gray-900 text-sm">{rock.name}</div>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold" style={{ backgroundColor: getMemberColor(rock.owner) }}>
-                      {rock.owner[0]}
-                    </span>
-                    {rock.owner}
-                  </div>
-                  {rock.definition_of_done && <p className="text-xs text-gray-500 mt-2">{rock.definition_of_done}</p>}
-                  {rock.milestones.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {rock.milestones.map((m, i) => (
-                        <div key={i} className="flex items-center gap-1.5 text-xs text-gray-500">
-                          <span className="w-3 h-3 rounded border border-gray-300 flex-shrink-0" />
-                          {m}
+              {rocks.map(rock => {
+                const isRockExpanded = expandedRocks.has(rock.id);
+                const hasMore = (rock.definition_of_done && rock.definition_of_done.length > 100) || rock.milestones.length > 0;
+                const truncatedDesc = rock.definition_of_done
+                  ? rock.definition_of_done.length > 100 && !isRockExpanded
+                    ? rock.definition_of_done.slice(0, 100) + '…'
+                    : rock.definition_of_done
+                  : '';
+                return (
+                  <div key={rock.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-2">
+                    <div
+                      className={`flex items-start justify-between ${hasMore ? 'cursor-pointer' : ''}`}
+                      onClick={() => {
+                        if (!hasMore) return;
+                        setExpandedRocks(prev => {
+                          const next = new Set(prev);
+                          next.has(rock.id) ? next.delete(rock.id) : next.add(rock.id);
+                          return next;
+                        });
+                      }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 text-sm">{rock.name}</div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                          <span className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold" style={{ backgroundColor: getMemberColor(rock.owner) }}>
+                            {rock.owner[0]}
+                          </span>
+                          {rock.owner}
                         </div>
-                      ))}
+                        {truncatedDesc && <p className="text-xs text-gray-500 mt-2">{truncatedDesc}</p>}
+                      </div>
+                      {hasMore && (
+                        <svg className={`w-4 h-4 text-gray-400 flex-shrink-0 mt-1 ml-2 transition-transform ${isRockExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                    {isRockExpanded && rock.milestones.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Milestones</div>
+                        {rock.milestones.map((m, i) => (
+                          <div key={i} className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <span className="w-3 h-3 rounded border border-gray-300 flex-shrink-0" />
+                            {m}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>

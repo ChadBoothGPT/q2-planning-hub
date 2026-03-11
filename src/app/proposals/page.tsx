@@ -106,7 +106,7 @@ export default function ProposalsPage() {
   }
 
   function addMilestone() {
-    if (form.milestones.length < 3) {
+    if (form.milestones.length < 6) {
       setForm(f => ({ ...f, milestones: [...f.milestones, ''] }));
     }
   }
@@ -121,7 +121,7 @@ export default function ProposalsPage() {
 
   // Edit form milestone helpers
   function addEditMilestone() {
-    if (editForm && editForm.milestones.length < 3) {
+    if (editForm && editForm.milestones.length < 6) {
       setEditForm({ ...editForm, milestones: [...editForm.milestones, ''] });
     }
   }
@@ -227,7 +227,7 @@ export default function ProposalsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Key Milestones ({form.milestones.length}/3)
+                  Key Milestones ({form.milestones.length}/6)
                 </label>
                 {form.milestones.map((m, i) => (
                   <div key={i} className="flex gap-2 mb-2">
@@ -246,7 +246,7 @@ export default function ProposalsPage() {
                     )}
                   </div>
                 ))}
-                {form.milestones.length < 3 && (
+                {form.milestones.length < 6 && (
                   <button type="button" onClick={addMilestone} className="text-sm text-[#0B4B3B] font-medium hover:underline">
                     + Add milestone
                   </button>
@@ -328,7 +328,7 @@ export default function ProposalsPage() {
                             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0B4B3B] focus:border-transparent outline-none resize-none"
                           />
                           <div>
-                            <span className="text-xs font-medium text-gray-500 mb-1 block">Milestones ({editForm.milestones.length}/3)</span>
+                            <span className="text-xs font-medium text-gray-500 mb-1 block">Milestones ({editForm.milestones.length}/6)</span>
                             {editForm.milestones.map((m, i) => (
                               <div key={i} className="flex gap-2 mb-2">
                                 <input
@@ -346,7 +346,7 @@ export default function ProposalsPage() {
                                 )}
                               </div>
                             ))}
-                            {editForm.milestones.length < 3 && (
+                            {editForm.milestones.length < 6 && (
                               <button onClick={addEditMilestone} className="text-xs text-[#0B4B3B] font-medium hover:underline">
                                 + Add milestone
                               </button>

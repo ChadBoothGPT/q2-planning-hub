@@ -60,6 +60,7 @@ export interface AIWorkflow {
 export interface AICommitment {
   id: string;
   department: string;
+  department_name: string;
   department_lead: string;
   champion_names: string;
   workflows: AIWorkflow[];

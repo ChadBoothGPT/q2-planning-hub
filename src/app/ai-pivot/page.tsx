@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/lib/UserContext';
 import { DEPARTMENTS, TEAM_MEMBERS } from '@/lib/constants';
 import { AICommitment, AIWorkflow } from '@/lib/types';
@@ -10,6 +10,7 @@ const EMPTY_WORKFLOW: AIWorkflow = { name: '', pain_point: '', success_metric: '
 function getEmptyCommitment(dept: { id: string; name: string }): Partial<AICommitment> {
   return {
     department: dept.id,
+    department_name: dept.name,
     department_lead: '',
     champion_names: '',
     workflows: [{ ...EMPTY_WORKFLOW }, { ...EMPTY_WORKFLOW }],
@@ -53,81 +54,79 @@ const DISCOVERY_QUESTIONS = [
   },
 ];
 
-// Department-specific inspiration chips
-const INSPIRATION_CHIPS: Record<string, { label: string; pain: string }[]> = {
-  'finance': [
-    { label: 'Invoice Matching', pain: 'Manually matching invoices to POs takes hours each week' },
-    { label: 'Variance Analysis', pain: 'Monthly budget vs. actual analysis requires pulling from 5+ sources' },
-    { label: 'Expense Auditing', pain: 'Reviewing expense reports for policy compliance is tedious and error-prone' },
-    { label: 'Cash Flow Forecasting', pain: 'Building cash flow projections requires manual data consolidation' },
-    { label: 'Vendor Payment Tracking', pain: 'Following up on pending payments and reconciling vendor accounts' },
-    { label: 'Month-End Close Checklist', pain: 'Coordinating 20+ close tasks across team with manual status tracking' },
-  ],
-  'people-ta': [
-    { label: 'Candidate Sourcing', pain: 'Searching multiple platforms to build qualified candidate pipelines' },
-    { label: 'Job Description Writing', pain: 'Creating role-specific JDs from scratch for each new opening' },
-    { label: 'Offer Letter Generation', pain: 'Assembling offer packages with correct comp, benefits, and terms' },
-    { label: 'Hiring Pipeline Analytics', pain: 'Manually compiling time-to-fill, source-of-hire, and conversion metrics' },
-    { label: 'Client Intake Summaries', pain: 'Summarizing client requirements and translating to recruitment criteria' },
-    { label: 'Candidate Reactivation', pain: 'Identifying past candidates who match new openings from old records' },
-  ],
-  'people-hr': [
-    { label: 'Policy Q&A', pain: 'HR team answering the same benefits and policy questions repeatedly' },
-    { label: 'Onboarding Coordination', pain: 'Tracking 30+ onboarding tasks per new hire across multiple systems' },
-    { label: 'Leave Balance Auditing', pain: 'Manually reconciling leave records across payroll and HRIS' },
-    { label: 'Performance Review Prep', pain: 'Compiling feedback, goals, and metrics before each review cycle' },
-    { label: 'Compliance Reporting', pain: 'Pulling and formatting data for labor compliance and government reports' },
-    { label: 'Employee Data Updates', pain: 'Processing address changes, bank details, and status updates across systems' },
-  ],
-};
 
 export default function AIPivotPage() {
   const { currentUser } = useUser();
   const [commitments, setCommitments] = useState<Record<string, Partial<AICommitment>>>({});
-  const [expandedDept, setExpandedDept] = useState<string>(DEPARTMENTS[0].id);
+  const [expandedDept, setExpandedDept] = useState<string>('');
   const [showGuide, setShowGuide] = useState(false);
-  const [customDepts, setCustomDepts] = useState<{ id: string; name: string }[]>(() => {
-    if (typeof window !== 'undefined') {
-      try { return JSON.parse(localStorage.getItem('ai-pivot-custom-depts') || '[]'); } catch { return []; }
-    }
-    return [];
-  });
+  const [customDepts, setCustomDepts] = useState<{ id: string; name: string }[]>([]);
   const [showAddDept, setShowAddDept] = useState(false);
   const [newDeptName, setNewDeptName] = useState('');
-  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const [saveStatus, setSaveStatus] = useState<Record<string, 'saving' | 'saved' | null>>({});
+  const [dirty, setDirty] = useState<Record<string, boolean>>({});
 
   const fetchCommitments = useCallback(async () => {
     const res = await fetch('/api/commitments');
     const data: AICommitment[] = await res.json();
     const map: Record<string, Partial<AICommitment>> = {};
-    const savedCustom: { id: string; name: string }[] = (() => {
-      if (typeof window !== 'undefined') {
-        try { return JSON.parse(localStorage.getItem('ai-pivot-custom-depts') || '[]'); } catch { return []; }
-      }
-      return [];
-    })();
-    [...DEPARTMENTS, ...savedCustom].forEach(d => {
+    const knownDeptIds = new Set(DEPARTMENTS.map(d => d.id));
+    const serverCustomDepts: { id: string; name: string }[] = [];
+    // Load hardcoded departments
+    DEPARTMENTS.forEach(d => {
       const existing = data.find(c => c.department === d.id);
       map[d.id] = existing || getEmptyCommitment(d);
     });
+    // Derive custom departments from server data
+    data.forEach(c => {
+      if (!knownDeptIds.has(c.department)) {
+        const name = c.department_name || c.department.replace(/^custom-/, '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        serverCustomDepts.push({ id: c.department, name });
+        map[c.department] = c;
+      }
+    });
+    setCustomDepts(serverCustomDepts);
     setCommitments(map);
   }, []);
 
   useEffect(() => { fetchCommitments(); }, [fetchCommitments]);
 
   function updateField(deptId: string, field: string, value: unknown) {
-    setCommitments(prev => {
-      const updated = { ...prev, [deptId]: { ...prev[deptId], [field]: value, updated_by: currentUser } };
-      if (debounceTimers.current[deptId]) clearTimeout(debounceTimers.current[deptId]);
-      debounceTimers.current[deptId] = setTimeout(async () => {
-        await fetch('/api/commitments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated[deptId]),
-        });
-      }, 500);
-      return updated;
+    setCommitments(prev => ({
+      ...prev,
+      [deptId]: { ...prev[deptId], [field]: value, updated_by: currentUser },
+    }));
+    setDirty(d => ({ ...d, [deptId]: true }));
+  }
+
+  async function saveDepartment(deptId: string) {
+    const data = commitments[deptId];
+    if (!data) return;
+    setSaveStatus(s => ({ ...s, [deptId]: 'saving' }));
+    await fetch('/api/commitments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     });
+    setSaveStatus(s => ({ ...s, [deptId]: 'saved' }));
+    setDirty(d => ({ ...d, [deptId]: false }));
+    setTimeout(() => setSaveStatus(s => ({ ...s, [deptId]: null })), 2000);
+  }
+
+  async function deleteDepartment(deptId: string) {
+    if (!confirm('Delete this department and all its data?')) return;
+    await fetch('/api/commitments', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ department: deptId }),
+    });
+    setCustomDepts(prev => prev.filter(d => d.id !== deptId));
+    setCommitments(prev => {
+      const next = { ...prev };
+      delete next[deptId];
+      return next;
+    });
+    if (expandedDept === deptId) setExpandedDept('');
   }
 
   function updateWorkflow(deptId: string, idx: number, field: keyof AIWorkflow, value: string) {
@@ -150,33 +149,27 @@ export default function AIPivotPage() {
     }
   }
 
-  function applyInspirationChip(deptId: string, chip: { label: string; pain: string }) {
-    const current = commitments[deptId]?.workflows || [];
-    // Find first empty slot, or add new
-    const emptyIdx = current.findIndex(w => !w.name && !w.pain_point);
-    if (emptyIdx >= 0) {
-      const updated = current.map((w, i) => i === emptyIdx ? { ...w, name: chip.label, pain_point: chip.pain } : w);
-      updateField(deptId, 'workflows', updated);
-    } else if (current.length < 5) {
-      updateField(deptId, 'workflows', [...current, { ...EMPTY_WORKFLOW, name: chip.label, pain_point: chip.pain }]);
-    }
-  }
 
   const allDepts = [...DEPARTMENTS, ...customDepts];
 
-  function addDepartment() {
+  async function addDepartment() {
     if (!newDeptName.trim()) return;
     const id = `custom-${newDeptName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`;
     const newDept = { id, name: newDeptName.trim() };
-    const updated = [...customDepts, newDept];
-    setCustomDepts(updated);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ai-pivot-custom-depts', JSON.stringify(updated));
-    }
-    setCommitments(prev => ({ ...prev, [id]: getEmptyCommitment(newDept) }));
+    const commitment = getEmptyCommitment(newDept);
+    commitment.updated_by = currentUser;
+    // Optimistic update
+    setCustomDepts(prev => [...prev, newDept]);
+    setCommitments(prev => ({ ...prev, [id]: commitment }));
     setExpandedDept(id);
     setNewDeptName('');
     setShowAddDept(false);
+    // Persist to server immediately
+    await fetch('/api/commitments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(commitment),
+    });
   }
 
   function getCompletion(dept: Partial<AICommitment>): number {
@@ -258,8 +251,6 @@ export default function AIPivotPage() {
             const c = commitments[dept.id] || getEmptyCommitment(dept);
             const isExpanded = expandedDept === dept.id;
             const completion = getCompletion(c);
-            const chips = INSPIRATION_CHIPS[dept.id] || [];
-            const usedNames = (c.workflows || []).map(w => w.name);
 
             return (
               <div key={dept.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -277,6 +268,9 @@ export default function AIPivotPage() {
                         />
                       </div>
                       <span className="text-xs text-gray-500">{completion}%</span>
+                      {dirty[dept.id] && (
+                        <span className="text-xs text-yellow-600 font-medium">Unsaved</span>
+                      )}
                     </div>
                   </div>
                   <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,22 +315,6 @@ export default function AIPivotPage() {
                         </label>
                       </div>
 
-                      {/* Inspiration Chips */}
-                      <div className="mb-4">
-                        <p className="text-xs text-gray-400 mb-2">Click an idea to get started, or add your own below:</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {chips.filter(ch => !usedNames.includes(ch.label)).map((chip, i) => (
-                            <button
-                              key={i}
-                              onClick={() => applyInspirationChip(dept.id, chip)}
-                              className="px-2.5 py-1 rounded-full text-xs bg-[#DBEAF4] text-[#0B4B3B] font-medium hover:bg-[#c5dced] transition"
-                              title={chip.pain}
-                            >
-                              + {chip.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
 
                       {(c.workflows || []).map((w, i) => (
                         <div key={i} className="bg-gray-50 rounded-xl p-4 mb-3">
@@ -367,7 +345,7 @@ export default function AIPivotPage() {
                             />
                           </div>
                           <div className="relative mb-2">
-                            <label className="absolute -top-0.5 left-3 bg-gray-50 px-1 text-[10px] text-gray-400 font-medium">What does good look like?</label>
+                            <label className="absolute -top-0.5 left-3 bg-gray-50 px-1 text-[10px] text-gray-400 font-medium">What&apos;s the expected impact?</label>
                             <input
                               value={w.success_metric}
                               onChange={e => updateWorkflow(dept.id, i, 'success_metric', e.target.value)}
@@ -426,6 +404,30 @@ export default function AIPivotPage() {
                         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#0B4B3B] focus:border-transparent outline-none resize-none"
                       />
                     </div>
+
+                    {/* Save / Delete actions */}
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => saveDepartment(dept.id)}
+                          disabled={saveStatus[dept.id] === 'saving'}
+                          className="px-5 py-2 bg-[#0B4B3B] text-white rounded-lg text-sm font-medium hover:bg-[#0d6b54] transition disabled:opacity-50"
+                        >
+                          {saveStatus[dept.id] === 'saving' ? 'Saving...' : 'Save'}
+                        </button>
+                        {saveStatus[dept.id] === 'saved' && (
+                          <span className="text-sm text-green-600 font-medium">Saved</span>
+                        )}
+                      </div>
+                      {dept.id.startsWith('custom-') && (
+                        <button
+                          onClick={() => deleteDepartment(dept.id)}
+                          className="px-4 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg text-sm font-medium transition"
+                        >
+                          Delete Department
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -471,6 +473,29 @@ export default function AIPivotPage() {
 
         {/* Right Column: AI Adoption Map */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Opportunity Pipeline — moved to top */}
+          {allWorkflows.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <h3 className="font-bold text-gray-900 mb-3">AI Opportunity Pipeline</h3>
+              <div className="space-y-2">
+                {allWorkflows.map((w, i) => (
+                  <div key={i} className="border border-gray-100 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#DBEAF4] text-[#0B4B3B] font-medium">{w.department}</span>
+                      <span className="font-medium text-sm text-gray-900">{w.name}</span>
+                    </div>
+                    {w.pain_point && (
+                      <div className="text-xs text-gray-500 mb-0.5">Pain: {w.pain_point}</div>
+                    )}
+                    {w.success_metric && (
+                      <div className="text-xs text-green-600">Target: {w.success_metric}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Department Readiness */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <h3 className="font-bold text-gray-900 mb-4">Department Readiness</h3>
@@ -525,29 +550,6 @@ export default function AIPivotPage() {
               </div>
             )}
           </div>
-
-          {/* Opportunity Pipeline */}
-          {allWorkflows.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-              <h3 className="font-bold text-gray-900 mb-3">AI Opportunity Pipeline</h3>
-              <div className="space-y-2">
-                {allWorkflows.map((w, i) => (
-                  <div key={i} className="border border-gray-100 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#DBEAF4] text-[#0B4B3B] font-medium">{w.department}</span>
-                      <span className="font-medium text-sm text-gray-900">{w.name}</span>
-                    </div>
-                    {w.pain_point && (
-                      <div className="text-xs text-gray-500 mb-0.5">Pain: {w.pain_point}</div>
-                    )}
-                    {w.success_metric && (
-                      <div className="text-xs text-green-600">Target: {w.success_metric}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Gaps & Warnings */}
           {warnings.length > 0 && (
