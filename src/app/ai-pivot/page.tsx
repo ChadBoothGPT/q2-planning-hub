@@ -70,7 +70,7 @@ export default function AIPivotPage() {
     const res = await fetch('/api/commitments');
     const data: AICommitment[] = await res.json();
     const map: Record<string, Partial<AICommitment>> = {};
-    const knownDeptIds = new Set(DEPARTMENTS.map(d => d.id));
+    const knownDeptIds = new Set<string>(DEPARTMENTS.map(d => d.id));
     const serverCustomDepts: { id: string; name: string }[] = [];
     // Load hardcoded departments
     DEPARTMENTS.forEach(d => {
