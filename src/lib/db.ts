@@ -88,8 +88,16 @@ export async function upsertCommitment(commitment: AICommitment): Promise<AIComm
     )
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw new Error(`Supabase upsert failed: ${error.message} (code: ${error.code}, details: ${error.details})`);
   return data;
+}
+
+export async function deleteCommitment(department: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('ai_commitments')
+    .delete()
+    .eq('department', department);
+  return !error;
 }
 
 export async function deleteProposal(id: string): Promise<boolean> {
